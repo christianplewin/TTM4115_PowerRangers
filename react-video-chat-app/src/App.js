@@ -1,9 +1,14 @@
-import logo from './logo.svg';
 import './App.css';
 
 import firebase from "firebase";
 import { firestore } from "firebase/firestore";
-import FirebaseTest from "./FirebaseTest";
+import { 
+  BrowserRouter,
+  Routes,
+  Route
+} from "react-router-dom";
+
+import ReactStandard from './pages/tests/ReactStandard';
 
 if (!firebase.apps.length) {
   firebase.initializeApp({
@@ -16,27 +21,16 @@ if (!firebase.apps.length) {
   });
 }
 
+
+
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-
-        {<FirebaseTest />}
-      </header>
-    </div>
-  );
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<ReactStandard />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }
 
 export default App;
