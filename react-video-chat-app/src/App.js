@@ -7,8 +7,8 @@ import {
   Routes,
   Route
 } from "react-router-dom";
-
 import ReactStandard from './pages/tests/ReactStandard';
+import MQTTTest from "./pages/tests/MQTTTest";
 
 if (!firebase.apps.length) {
   firebase.initializeApp({
@@ -28,9 +28,12 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ReactStandard />} />
+        <Route path="/mqtt" element={<MQTTTest />} />
       </Routes>
     </BrowserRouter>
   )
 }
+
+
 
 export default App;
