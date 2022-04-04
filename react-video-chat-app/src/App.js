@@ -1,14 +1,14 @@
 import './App.css';
 
 import firebase from "firebase";
-import { firestore } from "firebase/firestore";
-import { 
+import {
   BrowserRouter,
   Routes,
   Route
 } from "react-router-dom";
 
 import ReactStandard from './pages/tests/ReactStandard';
+import MQTTTest from "./pages/tests/MQTTTest";
 
 if (!firebase.apps.length) {
   firebase.initializeApp({
@@ -21,16 +21,16 @@ if (!firebase.apps.length) {
   });
 }
 
-
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ReactStandard />} />
+        <Route path="/mqtt" element={<MQTTTest />} />
       </Routes>
     </BrowserRouter>
   )
 }
+
 
 export default App;
