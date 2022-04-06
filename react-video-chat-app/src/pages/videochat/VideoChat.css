@@ -1,0 +1,21 @@
+#videostream-container {
+    display: flex;
+    flex-direction: row;
+}
+
+.container-100 {
+    width: 100%;
+}
+
+.container-70 {
+    width: 70%;
+}
+
+.videostream {
+    width: 50%;
+}
+
+#call-btn {
+    margin: 1rem;
+    padding: 5px;
+}
