@@ -4,6 +4,7 @@ import {useEffect, useState, useRef, forwardRef} from 'react';
 import {useMqttState, useSubscription} from 'mqtt-react-hooks';
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
+import Authentication from '../../components/authentication';
 
 const servers = {
 	iceServers: [
@@ -26,6 +27,7 @@ let localStream = null;
 let remoteStream = null;
 
 export default function VideoChat() {
+	/* VIDEOCHAT CONSTANTS */
 	const [meetingId, setMeetingId] = useState(uuidv4());
 	const [havePublishedOffer, setHavePublishedOffer] = useState(false);
 	const db = firebase.firestore();
@@ -36,6 +38,14 @@ export default function VideoChat() {
 		topics.publishPresence,
 		topics.publishOffer,
 	]);
+
+	/* GAME CONSTANTS */
+	const [name, setName] = useState();
+	const [authenticated, setAuthenticated] = useState(false);
+
+	useEffect(() => {
+		console.log(name, authenticated);
+	}, [name, authenticated]);
 
 	useEffect(() => {
 		if (connectionStatus.toLowerCase() === "connected") {
@@ -187,6 +197,12 @@ export default function VideoChat() {
 			});
 	}
 
+	/* GAME FUNCTIONS */
+	function authenticate(name) {
+		setName(name);
+		setAuthenticated(true);
+	}
+
 	return (<div>
 		<h1 id="page-title">Video chat application</h1>
 		<button onClick={call} id={"call-btn"}>Click to call</button>
@@ -194,6 +210,7 @@ export default function VideoChat() {
 			<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
 			<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
 		</div>
+		<Authentication onAuthenticate={(name) => authenticate(name)} />
 	</div>);
 }
 
