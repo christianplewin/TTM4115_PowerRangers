@@ -70,10 +70,6 @@ export default function VideoChat() {
 	const [authenticated, setAuthenticated] = useState(false);
 
 	useEffect(() => {
-		console.log(userInFrame);
-	}, [userInFrame]);
-
-	useEffect(() => {
 		/* Initial transition from IDLE to INACTIVE */
 		if (controlState === STATES.idle) {
 			setControlState(STATES.inactive);
