@@ -14,6 +14,14 @@ const STATES = {
 	in_game: "in_game"
 };
 
+/*const EVENTS = {
+	rcv_face_detected: "rcv_face_detected",
+	rcv_left_frame: "rcv_left_frame",
+	rcv_others_active: "rcv_others_active",
+	disconnect: "disconnect",
+	play: "play"
+};*/
+
 const SERVERS = {
 	iceServers: [
 		{
@@ -28,7 +36,8 @@ const GLOBAL_BASE = "/ttm4115/team_12";
 const TOPICS = {
 	publishOffer: `${GLOBAL_BASE}/offer`,
 	publishPresence: `${GLOBAL_BASE}/present`,
-	disconnect: `${GLOBAL_BASE}/disconnect`
+	disconnect: `${GLOBAL_BASE}/disconnect`,
+	camera: `${GLOBAL_BASE}/cam`
 };
 
 let pc/* = new RTCPeerConnection(SERVERS)*/;
@@ -44,6 +53,7 @@ export default function VideoChat() {
 	const [meetingId, setMeetingId] = useState(uuidv4());
 	const [publishingOffer, setPublishingOffer] = useState(false);
 	const [havePublishedOffer, setHavePublishedOffer] = useState(false);
+	const [userInFrame, setUserInFrame] = useState(false);
 	const db = firebase.firestore();
 	const localVideoRef = useRef(null);
 	const remoteVideoRef = useRef(null);
@@ -52,11 +62,16 @@ export default function VideoChat() {
 		TOPICS.publishPresence,
 		TOPICS.publishOffer,
 		TOPICS.disconnect,
+		TOPICS.camera,
 	]);
 
 	/* GAME CONSTANTS */
 	const [name, setName] = useState();
 	const [authenticated, setAuthenticated] = useState(false);
+
+	useEffect(() => {
+		console.log(userInFrame);
+	}, [userInFrame]);
 
 	useEffect(() => {
 		/* Initial transition from IDLE to INACTIVE */
@@ -89,6 +104,7 @@ export default function VideoChat() {
 
 	useEffect(() => {
 		if (message) {
+			console.log(message.topic, message.message);
 			if (controlState === STATES.active &&
 				message.message != meetingId &&
 				message.topic == TOPICS.publishPresence) {
@@ -98,6 +114,28 @@ export default function VideoChat() {
 			} else if (message.topic === TOPICS.disconnect) {
 				if (controlState === STATES.in_call || controlState === STATES.in_game) {
 					disconnect();
+				}
+			} else if (message.topic === TOPICS.camera) {
+				const words = message.message.split(" ");
+				const camClient =  clientNumber == 1 ? "cam1" : "cam2";
+
+				if (words[0] == camClient) {
+					console.log(message.topic, message.message);
+
+					if (words[1] === "in_frame") {
+						console.log("Should go into ACTIVE if in INACTIVE");
+
+						if (!userInFrame) setUserInFrame(true);
+
+						//if (controlState === STATES.inactive) setControlState(STATES.active);
+
+					} else if (words[1] === "left_frame") {
+						console.log("Should go into INACTIVE if in ACTIVE");
+
+						if (userInFrame) setUserInFrame(false);
+
+						//if (controlState === STATES.active) setControlState(STATES.inactive);
+					}
 				}
 			}
 		}
