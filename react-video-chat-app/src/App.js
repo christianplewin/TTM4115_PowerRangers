@@ -11,6 +11,8 @@ import { useEffect } from 'react';
 import ReactStandard from './pages/tests/ReactStandard';
 import MQTTTest from "./pages/tests/MQTTTest";
 import VideoChat from './pages/videochat/VideoChat';
+import Game from './pages/game/Game';
+
 
 if (!firebase.apps.length) {
   firebase.initializeApp({
@@ -36,6 +38,7 @@ function App() {
         <Route path="/" element={<ReactStandard />} />
         <Route path="/mqtt" element={<MQTTTest />} />
         <Route path="/videochat" element={<VideoChat />} />
+        <Route path="/game" element={<Game />} />
       </Routes>
     </BrowserRouter>
   )

@@ -1,25 +1,26 @@
 import "./VideoChat.css";
 
-import {useEffect, useState, useRef, forwardRef} from 'react';
-import {useMqttState, useSubscription} from 'mqtt-react-hooks';
+import { useEffect, useState, useRef, forwardRef } from "react";
+import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
-import Authentication from '../../components/authentication';
+import Authentication from "../../components/authentication";
 
 const servers = {
-	iceServers: [
-		{
-			urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-		},
-	],
-	iceCandidatePoolSize: 10,
+  iceServers: [
+    {
+      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+    },
+  ],
+  iceCandidatePoolSize: 10,
 };
 
+/* MQTT Configuration */
 const GLOBAL_BASE = "/ttm4115/team_12";
 
 const topics = {
-	publishOffer: `${GLOBAL_BASE}/offer`,
-	publishPresence: `${GLOBAL_BASE}/present`,
+  publishOffer: `${GLOBAL_BASE}/offer`,
+  publishPresence: `${GLOBAL_BASE}/present`,
 };
 
 let pc = new RTCPeerConnection(servers);
@@ -27,197 +28,220 @@ let localStream = null;
 let remoteStream = null;
 
 export default function VideoChat() {
-	/* VIDEOCHAT CONSTANTS */
-	const [meetingId, setMeetingId] = useState(uuidv4());
-	const [havePublishedOffer, setHavePublishedOffer] = useState(false);
-	const db = firebase.firestore();
-	const localVideoRef = useRef(null);
-	const remoteVideoRef = useRef(null);
-	const { client, connectionStatus } = useMqttState();
-	const { message } = useSubscription([
-		topics.publishPresence,
-		topics.publishOffer,
-	]);
+  
+  /* VIDEOCHAT CONSTANTS */
+  const [meetingId, setMeetingId] = useState(uuidv4());
+  const [havePublishedOffer, setHavePublishedOffer] = useState(false);
+  const db = firebase.firestore();
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const { client, connectionStatus } = useMqttState();
+  const { message } = useSubscription([
+    topics.publishPresence,
+    topics.publishOffer,
+  ]);
 
-	/* GAME CONSTANTS */
-	const [name, setName] = useState();
-	const [authenticated, setAuthenticated] = useState(false);
+  /* GAME CONSTANTS */
+  const [name, setName] = useState();
+  const [authenticated, setAuthenticated] = useState(false);
 
-	useEffect(() => {
-		console.log(name, authenticated);
-	}, [name, authenticated]);
+  useEffect(() => {
+    console.log(name, authenticated);
+  }, [name, authenticated]);
 
-	useEffect(() => {
-		if (connectionStatus.toLowerCase() === "connected") {
-			publishPresence(meetingId);
-		}
-	}, [connectionStatus]);
+  useEffect(() => {
+    if (connectionStatus.toLowerCase() === "connected") {
+      publishPresence(meetingId);
+    }
+  }, [connectionStatus]);
 
-	useEffect(() => {
-		if (message) {
-			if (message.message != meetingId && message.topic == topics.publishPresence) {
-				setMeetingId(message.message);
-			} else if (message.topic === topics.publishOffer) {
-				!havePublishedOffer && answerCall(meetingId);
-			}
-		}
-	}, [message]);
+  useEffect(() => {
+    if (message) {
+      if (
+        message.message != meetingId &&
+        message.topic == topics.publishPresence
+      ) {
+        setMeetingId(message.message);
+      } else if (message.topic === topics.publishOffer) {
+        !havePublishedOffer && answerCall(meetingId);
+      }
+    }
+  }, [message]);
 
-	useEffect(() => {
-	    getLocalVideo();
-		getRemoteVideo();
-	  }, [localVideoRef, remoteVideoRef]);
+  /* UPDATE STREAMS ON CHANGE */
+  useEffect(() => {
+    getLocalVideo();
+    getRemoteVideo();
+  }, [localVideoRef, remoteVideoRef]);
 
-	const getRemoteVideo = async () => {
-		remoteStream = new MediaStream();
+  /* INITIALIZE A REMOTE STREAM */
 
-		pc.ontrack = (event) => {
-			event.streams[0].getTracks().forEach((track) => {
-				remoteStream.addTrack(track);
-			});
-		};
+  const getRemoteVideo = async () => {
+    remoteStream = new MediaStream();
 
-		remoteVideoRef.current.srcObject = remoteStream;
-	}
-	
-	const getLocalVideo = async () => {
-		localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    pc.ontrack = (event) => {
+      event.streams[0].getTracks().forEach((track) => {
+        remoteStream.addTrack(track);
+      });
+    };
 
-		localStream.getTracks().forEach((track) => {
-			pc.addTrack(track, localStream);
-		});
+    remoteVideoRef.current.srcObject = remoteStream;
+  };
 
-		localVideoRef.current.srcObject = localStream;
-	}
+  /* CREATE LOCAL STREAM */
 
-	async function createCall(meetingId) {
-		// Reference Firestore collections for signaling
-		const callDoc = db.collection('calls').doc(meetingId);
-		const offerCandidates = callDoc.collection('offerCandidates');
-		const answerCandidates = callDoc.collection('answerCandidates');
+  const getLocalVideo = async () => {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
 
-		// Get candidates for caller, save to db
-		pc.onicecandidate = (event) => {
-			event.candidate && offerCandidates.add(event.candidate.toJSON());
-		};
+    localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
 
-		// Create offer
-		const offerDescription = await pc.createOffer();
-		await pc.setLocalDescription(offerDescription);
+    localVideoRef.current.srcObject = localStream;
+  };
 
-		const offer = {
-			sdp: offerDescription.sdp,
-			type: offerDescription.type,
-		};
+  async function createCall(meetingId) {
+    // Reference Firestore collections for signaling
+    const callDoc = db.collection("calls").doc(meetingId);
+    const offerCandidates = callDoc.collection("offerCandidates");
+    const answerCandidates = callDoc.collection("answerCandidates");
 
-		await callDoc.set({ offer });
-		publishOffer(JSON.stringify(offer));
+    // Get candidates for caller, save to db
+    pc.onicecandidate = (event) => {
+      event.candidate && offerCandidates.add(event.candidate.toJSON());
+    };
 
-		// Listen for remote answer
-		callDoc.onSnapshot((snapshot) => {
-			const data = snapshot.data();
-			if (!pc.currentRemoteDescription && data?.answer) {
-				const answerDescription = new RTCSessionDescription(data.answer);
-				pc.setRemoteDescription(answerDescription);
-			}
-		});
+    // Create offer
+    const offerDescription = await pc.createOffer();
+    await pc.setLocalDescription(offerDescription);
 
-		// When answered, add candidate to peer connection
-		answerCandidates.onSnapshot((snapshot) => {
-			snapshot.docChanges().forEach((change) => {
-				if (change.type === 'added') {
-					const candidate = new RTCIceCandidate(change.doc.data());
-					pc.addIceCandidate(candidate);
-				}
-			});
-		});
-	}
+    const offer = {
+      sdp: offerDescription.sdp,
+      type: offerDescription.type,
+    };
 
-	async function answerCall(meetingId) {
-		const callDoc = db.collection('calls').doc(meetingId);
-		const answerCandidates = callDoc.collection('answerCandidates');
-		const offerCandidates = callDoc.collection('offerCandidates');
+    await callDoc.set({ offer });
+    publishOffer(JSON.stringify(offer));
 
-		pc.onicecandidate = (event) => {
-			event.candidate && answerCandidates.add(event.candidate.toJSON());
-		};
+    // Listen for remote answer
+    callDoc.onSnapshot((snapshot) => {
+      const data = snapshot.data();
+      if (!pc.currentRemoteDescription && data?.answer) {
+        const answerDescription = new RTCSessionDescription(data.answer);
+        pc.setRemoteDescription(answerDescription);
+      }
+    });
 
-		const callData = (await callDoc.get()).data();
+    // When answered, add candidate to peer connection
+    answerCandidates.onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const candidate = new RTCIceCandidate(change.doc.data());
+          pc.addIceCandidate(candidate);
+        }
+      });
+    });
+  }
 
-		const offerDescription = callData.offer;
-		await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+  async function answerCall(meetingId) {
+    const callDoc = db.collection("calls").doc(meetingId);
+    const answerCandidates = callDoc.collection("answerCandidates");
+    const offerCandidates = callDoc.collection("offerCandidates");
 
-		const answerDescription = await pc.createAnswer();
-		await pc.setLocalDescription(answerDescription);
+    pc.onicecandidate = (event) => {
+      event.candidate && answerCandidates.add(event.candidate.toJSON());
+    };
 
-		const answer = {
-			type: answerDescription.type,
-			sdp: answerDescription.sdp,
-		};
+    const callData = (await callDoc.get()).data();
 
-		await callDoc.update({ answer });
+    const offerDescription = callData.offer;
+    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-		offerCandidates.onSnapshot((snapshot) => {
-			snapshot.docChanges().forEach((change) => {
-				if (change.type === 'added') {
-					let data = change.doc.data();
-					pc.addIceCandidate(new RTCIceCandidate(data));
-				}
-			});
-		});
-	}
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
 
-	/**
-	 * Publishes a message to the MQTT-broker on topic 'ttm4115/team_12/publishPresence'
-	 * @param message
-	 */
-	function publishPresence(message) {
-		if (connectionStatus.toLowerCase() === "connected") {
-			client.publish(topics.publishPresence, message);
-		}
-	}
+    const answer = {
+      type: answerDescription.type,
+      sdp: answerDescription.sdp,
+    };
 
-	/**
-	 * Publishes a message to the MQTT-broker on topic 'ttm4115/team_12/publishPresence'
-	 * @param message
-	 */
-	function publishOffer(offer) {
-		if (connectionStatus.toLowerCase() === "connected") {
-			client.publish(topics.publishOffer, offer);
-		}
-	}
+    await callDoc.update({ answer });
 
-	/**
-	 * Creates a call
-	 */
-	function call() {
-		createCall(message.topic === topics.publishPresence ? message.message : meetingId)
-			.then(() => {
-				setHavePublishedOffer(true)
-			});
-	}
+    offerCandidates.onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          let data = change.doc.data();
+          pc.addIceCandidate(new RTCIceCandidate(data));
+        }
+      });
+    });
+  }
 
-	/* GAME FUNCTIONS */
-	function authenticate(name) {
-		setName(name);
-		setAuthenticated(true);
-	}
+  /**
+   * Publishes a message to the MQTT-broker on topic 'ttm4115/team_12/publishPresence'
+   * @param message
+   */
+  function publishPresence(message) {
+    if (connectionStatus.toLowerCase() === "connected") {
+      client.publish(topics.publishPresence, message);
+    }
+  }
 
-	return (<div>
-		<h1 id="page-title">Video chat application</h1>
-		<button onClick={call} id={"call-btn"}>Click to call</button>
-		<div id="videostream-container" className="container-100">
-			<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
-			<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
-		</div>
-		<Authentication onAuthenticate={(name) => authenticate(name)} />
-	</div>);
+  /**
+   * Publishes a message to the MQTT-broker on topic 'ttm4115/team_12/publishPresence'
+   * @param message
+   */
+  function publishOffer(offer) {
+    if (connectionStatus.toLowerCase() === "connected") {
+      client.publish(topics.publishOffer, offer);
+    }
+  }
+
+  /**
+   * Creates a call
+   */
+  function call() {
+    createCall(
+      message.topic === topics.publishPresence ? message.message : meetingId
+    ).then(() => {
+      setHavePublishedOffer(true);
+    });
+  }
+
+  /* GAME FUNCTIONS */
+  function authenticate(name) {
+    setName(name);
+    setAuthenticated(true);
+  }
+
+  return (
+    <div>
+      <h1 id="page-title">Video chat application</h1>
+      <button onClick={call} id={"call-btn"}>
+        Click to call
+      </button>
+      <div id="videostream-container" className="container-100">
+        <VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
+        <VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
+      </div>
+      <Authentication onAuthenticate={(name) => authenticate(name)} />
+    </div>
+  );
 }
 
 const VideoStream = forwardRef((props, ref) => {
-	return (
-		<>
-			<video ref={ref} id={props.location} className="videostream" autoPlay playsInline/>
-		</>
-	);
-})
+  return (
+    <>
+      <video
+        ref={ref}
+        id={props.location}
+        className="videostream"
+        autoPlay
+        playsInline
+      />
+    </>
+  );
+});
