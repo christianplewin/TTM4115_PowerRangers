@@ -40,6 +40,7 @@ export default function VideoChat() {
 	const renderStates = [STATES.active, STATES.in_call, STATES.in_game];
 
 	/* VIDEOCHAT CONSTANTS */
+	const [clientNumber, setClientNumber] = useState(undefined);
 	const [meetingId, setMeetingId] = useState(uuidv4());
 	const [publishingOffer, setPublishingOffer] = useState(false);
 	const [havePublishedOffer, setHavePublishedOffer] = useState(false);
@@ -78,7 +79,7 @@ export default function VideoChat() {
 		} else if (controlState === STATES.in_game) {
 			//TODO: Add state machine logic for game
 		}
-	}, [controlState])
+	}, [controlState]);
 
 	useEffect(() => {
 		if (controlState === STATES.active && connectionStatus.toLowerCase() === "connected") {
@@ -272,7 +273,24 @@ export default function VideoChat() {
 		} else {
 			return <div>
 				<h1 id="page-title">Video chat application</h1>
-				<button onClick={() => setControlState(STATES.active)}>Gå til state ACTIVE</button>
+				<button
+					onClick={() => setClientNumber(1)}
+					disabled={clientNumber !== undefined}
+				>
+					I'm client number 1
+				</button>
+				<button
+					onClick={() => setClientNumber(2)}
+					disabled={clientNumber !== undefined}
+				>
+					I'm client number 2
+				</button>
+				<button
+					onClick={() => setControlState(STATES.active)}
+					disabled={clientNumber != 1 && clientNumber != 2}
+				>
+					Go to state ACTIVE
+				</button>
 			</div>;
 		}
 	}
