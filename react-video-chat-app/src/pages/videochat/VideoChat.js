@@ -6,7 +6,15 @@ import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
 import Authentication from '../../components/authentication';
 
-const servers = {
+const STATES = {
+	idle: "idle",
+	inactive: "inactive",
+	active: "active",
+	in_call: "in_call",
+	in_game: "in_game"
+};
+
+const SERVERS = {
 	iceServers: [
 		{
 			urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
@@ -17,26 +25,32 @@ const servers = {
 
 const GLOBAL_BASE = "/ttm4115/team_12";
 
-const topics = {
+const TOPICS = {
 	publishOffer: `${GLOBAL_BASE}/offer`,
 	publishPresence: `${GLOBAL_BASE}/present`,
+	disconnect: `${GLOBAL_BASE}/disconnect`
 };
 
-let pc = new RTCPeerConnection(servers);
+let pc/* = new RTCPeerConnection(SERVERS)*/;
 let localStream = null;
 let remoteStream = null;
 
 export default function VideoChat() {
+	const [controlState, setControlState] = useState(STATES.idle);
+	const renderStates = [STATES.active, STATES.in_call, STATES.in_game];
+
 	/* VIDEOCHAT CONSTANTS */
 	const [meetingId, setMeetingId] = useState(uuidv4());
+	const [publishingOffer, setPublishingOffer] = useState(false);
 	const [havePublishedOffer, setHavePublishedOffer] = useState(false);
 	const db = firebase.firestore();
 	const localVideoRef = useRef(null);
 	const remoteVideoRef = useRef(null);
 	const { client, connectionStatus } = useMqttState();
 	const { message } = useSubscription([
-		topics.publishPresence,
-		topics.publishOffer,
+		TOPICS.publishPresence,
+		TOPICS.publishOffer,
+		TOPICS.disconnect,
 	]);
 
 	/* GAME CONSTANTS */
@@ -44,29 +58,50 @@ export default function VideoChat() {
 	const [authenticated, setAuthenticated] = useState(false);
 
 	useEffect(() => {
-		console.log(name, authenticated);
-	}, [name, authenticated]);
+		/* Initial transition from IDLE to INACTIVE */
+		if (controlState === STATES.idle) {
+			setControlState(STATES.inactive);
+		} else if (controlState === STATES.inactive) {
+			pc = new RTCPeerConnection(SERVERS);
+		} else if (controlState === STATES.active) {
+			getLocalVideo();
+			getRemoteVideo();
+			if (connectionStatus.toLowerCase() === "connected") {
+				publishPresence(meetingId);
+			}
+		} else if (controlState === STATES.in_call) {
+			if (publishingOffer === true) {
+				call();
+			} else {
+				answerCall(meetingId);
+			}
+		} else if (controlState === STATES.in_game) {
+			//TODO: Add state machine logic for game
+		}
+	}, [controlState])
 
 	useEffect(() => {
-		if (connectionStatus.toLowerCase() === "connected") {
+		if (controlState === STATES.active && connectionStatus.toLowerCase() === "connected") {
 			publishPresence(meetingId);
 		}
 	}, [connectionStatus]);
 
 	useEffect(() => {
 		if (message) {
-			if (message.message != meetingId && message.topic == topics.publishPresence) {
+			if (controlState === STATES.active &&
+				message.message != meetingId &&
+				message.topic == TOPICS.publishPresence) {
 				setMeetingId(message.message);
-			} else if (message.topic === topics.publishOffer) {
-				!havePublishedOffer && answerCall(meetingId);
+			} else if (message.topic === TOPICS.publishOffer) {
+				!havePublishedOffer && setControlState(STATES.in_call);
+			} else if (message.topic === TOPICS.disconnect) {
+				if (controlState === STATES.in_call || controlState === STATES.in_game) {
+					disconnect();
+				}
 			}
 		}
 	}, [message]);
 
-	useEffect(() => {
-	    getLocalVideo();
-		getRemoteVideo();
-	  }, [localVideoRef, remoteVideoRef]);
 
 	const getRemoteVideo = async () => {
 		remoteStream = new MediaStream();
@@ -173,7 +208,7 @@ export default function VideoChat() {
 	 */
 	function publishPresence(message) {
 		if (connectionStatus.toLowerCase() === "connected") {
-			client.publish(topics.publishPresence, message);
+			client.publish(TOPICS.publishPresence, message);
 		}
 	}
 
@@ -183,7 +218,13 @@ export default function VideoChat() {
 	 */
 	function publishOffer(offer) {
 		if (connectionStatus.toLowerCase() === "connected") {
-			client.publish(topics.publishOffer, offer);
+			client.publish(TOPICS.publishOffer, offer);
+		}
+	}
+
+	function publishDisconnect() {
+		if (connectionStatus.toLowerCase() === "connected") {
+			client.publish(TOPICS.disconnect, "disconnecting");
 		}
 	}
 
@@ -191,10 +232,16 @@ export default function VideoChat() {
 	 * Creates a call
 	 */
 	function call() {
-		createCall(message.topic === topics.publishPresence ? message.message : meetingId)
+		createCall(message.topic === TOPICS.publishPresence ? message.message : meetingId)
 			.then(() => {
 				setHavePublishedOffer(true)
 			});
+	}
+
+	/* Disconnects the users, removing the video stream */
+	function disconnect() {
+		setControlState(STATES.inactive);
+		publishDisconnect();
 	}
 
 	/* GAME FUNCTIONS */
@@ -203,15 +250,34 @@ export default function VideoChat() {
 		setAuthenticated(true);
 	}
 
-	return (<div>
-		<h1 id="page-title">Video chat application</h1>
-		<button onClick={call} id={"call-btn"}>Click to call</button>
-		<div id="videostream-container" className="container-100">
-			<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
-			<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
-		</div>
-		<Authentication onAuthenticate={(name) => authenticate(name)} />
-	</div>);
+	function renderComponent() {
+		/* If current state is active, in_call or in_game, render video stream */
+		if (renderStates.indexOf(controlState) !== -1) {
+			return <div>
+				<h1 id="page-title">Video chat application</h1>
+				{controlState === STATES.active
+					? <button onClick={() => {
+						// Update state machine
+						setPublishingOffer(true);
+						setControlState(STATES.in_call);
+						}
+						} id={"call-btn"}>Click to call</button>
+					: <button onClick={disconnect} id={"disconnect-btn"}>Click to disconnect</button>}
+				<div id="videostream-container" className="container-100">
+					<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
+					<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
+				</div>
+				<Authentication onAuthenticate={(name) => authenticate(name)} />
+			</div>;
+		} else {
+			return <div>
+				<h1 id="page-title">Video chat application</h1>
+				<button onClick={() => setControlState(STATES.active)}>Gå til state ACTIVE</button>
+			</div>;
+		}
+	}
+
+	return renderComponent();
 }
 
 const VideoStream = forwardRef((props, ref) => {
