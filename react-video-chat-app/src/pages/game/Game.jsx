@@ -1,6 +1,5 @@
 import "./Game.css";
 
-
 //reactcomponent element
 import React from "react";
 import { useEffect, useState, useRef, forwardRef } from "react";
@@ -25,11 +24,8 @@ function Square(props) {
   );
 }
 
-
-
-function Board(){
-
-  const [ boardIndex, setBoardIndex ]  = useState(null);
+function Board() {
+  const [boardIndex, setBoardIndex] = useState(null);
   const { message: gameActionPayload } = useSubscription([
     topics.publishGameMove,
   ]);
@@ -37,14 +33,12 @@ function Board(){
   const { client, connectionStatus } = useMqttState();
   const [gameState, setGameState] = useState({
     squares: Array(9).fill(null),
-    xIsNext: true,              /* Change logic for online gameplay */
-  })
+    xIsNext: true,
+  });
 
   let moveToSend = (i) => ({
-    index : i
-  })
-
-
+    index: i,
+  });
 
   function publishGameMove(message) {
     if (connectionStatus.toLowerCase() === "connected") {
@@ -52,168 +46,93 @@ function Board(){
     }
   }
 
-
   useEffect(() => {
-    if(gameActionPayload?.message) {
+    if (gameActionPayload?.message) {
+      setBoardIndex(Number(gameActionPayload.message));
 
+      const s = Number(gameActionPayload.message);
 
-      
-      setBoardIndex(Number(gameActionPayload.message))
-      
-      const s = Number(gameActionPayload.message)
-
-      console.log(boardIndex)
-      
+      console.log(boardIndex);
 
       const squares = gameState.squares.slice();
-      console.log(squares)
+      console.log(squares);
 
       if (calculateWinner(squares) || squares[s]) {
         return;
       }
       const symbolLogic = (val, index) => {
-        if(index === s && gameState.xIsNext && !gameState.squares[s]) {
-          return 'X';
+        if (index === s && gameState.xIsNext && !gameState.squares[s]) {
+          return "X";
         }
-        if(index === s && !gameState.xIsNext && !gameState.squares[s]) {
-          return 'O';
-        } //commet for tsting
+        if (index === s && !gameState.xIsNext && !gameState.squares[s]) {
+          return "O";
+        }
         return val;
-  
-      } 
-  
-  
-      const squresValues = [...squares.map((val, index) => symbolLogic(val, index))]
-      setGameState((prev) => ({...prev, squares: squresValues,
-      
-      xIsNext: !prev.xIsNext,}))
+      };
 
+      const squresValues = [
+        ...squares.map((val, index) => symbolLogic(val, index)),
+      ];
+      setGameState((prev) => ({
+        ...prev,
+        squares: squresValues,
 
+        xIsNext: !prev.xIsNext,
+      }));
     }
-
-
-
-
-  }, [gameActionPayload])
-
-
+  }, [gameActionPayload]);
 
   const handleClick = (j) => {
-
-    console.log("click has been handeled")
-
-    
-
-    
-  }
-
-
-
-  //console.log(gameState.squares)
+    console.log("click has been handeled");
+  };
 
   const renderSquare = (i) => {
-    return <Square value={gameState.squares[i]} onClick={() => {handleClick(i)
-      publishGameMove(String(i))
-    }} />;
-  }
-
+    return (
+      <Square
+        value={gameState.squares[i]}
+        onClick={() => {
+          handleClick(i);
+          publishGameMove(String(i));
+        }}
+      />
+    );
+  };
 
   const winner = calculateWinner(gameState.squares);
 
   let status;
 
   if (winner) {
-    status = 'Winner: ' + winner;   //at stream if all elements are filled and no winner return tied.
+    status = "Winner: " + winner;
   } else {
-    status = 'Next player: ' + (gameState.xIsNext ? 'X' : 'O');
+    status = "Next player: " + (gameState.xIsNext ? "X" : "O");
   }
 
-
-
-    return (
-      <div>
-        <div className="status">{status}</div>
-        <div className="board-row">
-          {renderSquare(0)}
-          {renderSquare(1)}
-          {renderSquare(2)}
-        </div>
-        <div className="board-row">
-          {renderSquare(3)}
-          {renderSquare(4)}
-          {renderSquare(5)}
-        </div>
-        <div className="board-row">
-          {renderSquare(6)}
-          {renderSquare(7)}
-          {renderSquare(8)}
-        </div>
+  return (
+    <div>
+      <div className="status">{status}</div>
+      <div className="board-row">
+        {renderSquare(0)}
+        {renderSquare(1)}
+        {renderSquare(2)}
       </div>
-    );
-
-
-} 
-
-
-// class Board extends React.Component {
-//   constructor(props) {
-//     super(props);
-//     this.state = {
-//       squares: Array(9).fill(null),
-//       xIsNext: true,   /* Change logic for online gameplay */
-//       showDetails: false,
-//     }
-//   }  
-//   renderSquare(i) {
-//     return <Square value={this.state.squares[i]} onClick={() => this.handleClick(i)} />;
-//   }
-
-//   handleClick(i){
-//     const squares = this.state.squares.slice();
-//     if (calculateWinner(squares) || squares[i]) {
-//       return;
-//     }
-
-//     squares[i] = this.state.xIsNext ? 'X' : 'O';
-//     this.setState({squares: squares,
-//     xIsNext: !this.state.xIsNext,});
-//   }
-
-//   render() {
-//     const winner = calculateWinner(this.state.squares);
-//     let status;
-//     if (winner) {
-//       status = 'Winner: ' + winner;   //at stream if all elements are filled and no winner return tied.
-//     } else {
-//       status = 'Next player: ' + (this.state.xIsNext ? 'X' : 'O');
-//     }
-
-//     return (
-//       <div>
-//         <div className="status">{status}</div>
-//         <div className="board-row">
-//           {this.renderSquare(0)}
-//           {this.renderSquare(1)}
-//           {this.renderSquare(2)}
-//         </div>
-//         <div className="board-row">
-//           {this.renderSquare(3)}
-//           {this.renderSquare(4)}
-//           {this.renderSquare(5)}
-//         </div>
-//         <div className="board-row">
-//           {this.renderSquare(6)}
-//           {this.renderSquare(7)}
-//           {this.renderSquare(8)}
-//         </div>
-//       </div>
-//     );
-//   }
-// }
-
-
+      <div className="board-row">
+        {renderSquare(3)}
+        {renderSquare(4)}
+        {renderSquare(5)}
+      </div>
+      <div className="board-row">
+        {renderSquare(6)}
+        {renderSquare(7)}
+        {renderSquare(8)}
+      </div>
+    </div>
+  );
+}
 
 export default function Game() {
+  const [name, setName] = useState();
+  const [authenticated, setAuthenticated] = useState(false);
 
   const { client, connectionStatus } = useMqttState();
 
@@ -221,22 +140,9 @@ export default function Game() {
     topics.publishGameOffer,
   ]);
 
+  const startGamePayload2 = startGamePayload?.message.trim();
 
-  
-  // useEffect(() => {
-  //   if (startGamePayload) {
-  //       console.log(startGamePayload.message)
-  //   }
-  // }, [startGamePayload]);
-
-
-  const startGamePayload2 = startGamePayload?.message.trim()
-  console.log(startGamePayload2 && JSON.parse(startGamePayload2))
-
-  const showTheGame = startGamePayload2 && JSON.parse(startGamePayload2)
-
-
-
+  const showTheGame = startGamePayload2 && JSON.parse(startGamePayload2);
 
   function publishStartGame(message) {
     if (connectionStatus.toLowerCase() === "connected") {
@@ -244,26 +150,40 @@ export default function Game() {
     }
   }
 
+  function authenticate(name) {
+    if (!authenticated) {
+      setName(name);
+      setAuthenticated(true);
+    }
+  }
 
-
+  function logger() {
+    console.log(name);
+  }
 
   return (
     <div>
       <h1>TicGame</h1>
-      <div className="game-board">
-          {showTheGame?.state && <Board />}
-      </div>
-      <button onClick={() => {publishStartGame(JSON.stringify({state : true}))
+      <div className="game-board">{showTheGame?.state && <Board />}</div>
+      <button
+        onClick={() => {
+          publishStartGame(JSON.stringify({ state: true }));
+        }}
+      >
+        Start Game
+      </button>
 
-    
-    }}>Start Game</button>
+      <Authentication
+        onAuthenticate={(name) => {
+          authenticate(name);
+          logger();
+        }}
+      />
     </div>
   );
 }
 
-
-function calculateWinner(squares) {  /* TODO multiplayer */
-  //console.log(squares)
+function calculateWinner(squares) {
   const lines = [
     [0, 1, 2],
     [3, 4, 5],
@@ -277,9 +197,33 @@ function calculateWinner(squares) {  /* TODO multiplayer */
   for (let i = 0; i < lines.length; i++) {
     const [a, b, c] = lines[i];
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      console.log(squares[a])
+      console.log(squares[a]);
       return squares[a];
     }
   }
   return null;
 }
+
+/*TODO
+
+  Remove the start game button after push
+
+  Player 1 is the player who starts the game, assign player 1 state to that player,
+
+  Assign to other player, player 2 if game starts and he did not push the button.
+
+  If x wins, log statistics.
+
+  Log statistics increments the amount of wins, player 1 has by 1.
+
+  Get the name from the winner by matching the value of player name and authenticated name.
+
+  For example, if the winner is X, check which player is player 1 and log 1 win for player 1.
+
+  Do this by checking player state at each client and winner.
+
+  It will be easy to distinguis the players based on who pressed the button.
+
+  Therefore we can use the same MQTT topic for all the players
+
+  */
