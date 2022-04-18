@@ -1,5 +1,8 @@
 import "./Leaderboard.css";
 
+import firebase from "firebase";
+import { useEffect, useState } from "react";
+
 const data = [
 	{
 		name: "Navn 1",
@@ -16,7 +19,17 @@ const data = [
 ];
 
 export default function Leaderboard() {
-	return <Table scoreData={data} />;
+	const scoreCollection = firebase.firestore().collection("scores");
+	const [scoreData, setScoreData] = useState([]);
+	useEffect(() => {
+		scoreCollection
+			.get()
+			.then((colData) => {
+				setScoreData(colData.docs.map((doc) => doc.data()));
+			})
+	}, []);
+
+	return <Table scoreData={scoreData} />;
 }
 
 function Table(props) {
@@ -34,6 +47,11 @@ function Table(props) {
 		<thead>
 			<tr>
 				<th colSpan={3}>Leaderboard</th>
+			</tr>
+			<tr>
+				<td>Rank</td>
+				<td>Name</td>
+				<td>Score</td>
 			</tr>
 		</thead>
 		<tbody>
