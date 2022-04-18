@@ -1,10 +1,10 @@
 import "./VideoChat.css";
 
-import {useEffect, useState, useRef, forwardRef} from 'react';
-import {useMqttState, useSubscription} from 'mqtt-react-hooks';
+import { useEffect, useState, useRef, forwardRef } from "react";
+import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
-import Authentication from '../../components/authentication';
+import Authentication from "../../components/authentication";
 
 const STATES = {
 	idle: "idle",
@@ -31,6 +31,7 @@ const SERVERS = {
 	iceCandidatePoolSize: 10,
 };
 
+/* MQTT Configuration */
 const GLOBAL_BASE = "/ttm4115/team_12";
 
 const TOPICS = {
@@ -333,9 +334,15 @@ export default function VideoChat() {
 }
 
 const VideoStream = forwardRef((props, ref) => {
-	return (
-		<>
-			<video ref={ref} id={props.location} className="videostream" autoPlay playsInline/>
-		</>
-	);
-})
+  return (
+    <>
+      <video
+        ref={ref}
+        id={props.location}
+        className="videostream"
+        autoPlay
+        playsInline
+      />
+    </>
+  );
+});
