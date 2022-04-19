@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import ReactStandard from './pages/tests/ReactStandard';
 import MQTTTest from "./pages/tests/MQTTTest";
 import VideoChat from './pages/videochat/VideoChat';
-import Game from './pages/game/Game';
+import Game from './components/game/Game';
 import Leaderboard from './components/Leaderboard';
 
 if (!firebase.apps.length) {

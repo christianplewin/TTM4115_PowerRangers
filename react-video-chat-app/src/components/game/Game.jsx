@@ -2,12 +2,11 @@ import "./Game.css";
 
 //reactcomponent element
 import React from "react";
-import { useEffect, useState, useRef, forwardRef } from "react";
+import { useEffect, useState } from "react";
 import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
-import { v4 as uuidv4 } from "uuid";
-import Authentication from "../../components/authentication";
-import VideoChat from "../videochat/VideoChat";
+import Authentication from "../authentication";
+import Leaderboard from "../Leaderboard";
 
 const GLOBAL_BASE = "/ttm4115/team_12";
 
@@ -28,6 +27,7 @@ function Board(props) {
   const { belongsTo } = props;
   const [userSymbolMap, setUserSymbolMap] = useState();
   const [statuss, setStatus] = useState("");
+  const [finished, setFinished] = useState(false);
   const { message: gameActionPayload } = useSubscription([
     topics.publishGameMove,
   ]);
@@ -49,6 +49,7 @@ function Board(props) {
   useEffect(() => {
     const winner = calculateWinner(gameState.squares);
     if (winner) {
+      setFinished(true);
       setStatus("Winner: " + winner);
       winner == userSymbolMap.symbol && logWinner().catch(console.error);
     } else {
@@ -145,24 +146,30 @@ function Board(props) {
     );
   };
 
+  const renderBoard = () => {
+    return (<>
+        <div className="board-row">
+      {renderSquare(0)}
+      {renderSquare(1)}
+      {renderSquare(2)}
+    </div>
+    <div className="board-row">
+      {renderSquare(3)}
+      {renderSquare(4)}
+      {renderSquare(5)}
+    </div>
+    <div className="board-row">
+      {renderSquare(6)}
+      {renderSquare(7)}
+      {renderSquare(8)}
+    </div>
+    </>)
+  }
+
   return (
     <div>
       <div className="status">{statuss}</div>
-      <div className="board-row">
-        {renderSquare(0)}
-        {renderSquare(1)}
-        {renderSquare(2)}
-      </div>
-      <div className="board-row">
-        {renderSquare(3)}
-        {renderSquare(4)}
-        {renderSquare(5)}
-      </div>
-      <div className="board-row">
-        {renderSquare(6)}
-        {renderSquare(7)}
-        {renderSquare(8)}
-      </div>
+      {!finished ? renderBoard() : <Leaderboard />}
     </div>
   );
 }
