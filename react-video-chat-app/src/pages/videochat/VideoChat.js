@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, forwardRef } from "react";
 import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
-import Authentication from "../../components/authentication";
+import Game from "../../components/game/Game.jsx";
 
 const STATES = {
 	idle: "idle",
@@ -67,8 +67,7 @@ export default function VideoChat() {
 	]);
 
 	/* GAME CONSTANTS */
-	const [name, setName] = useState();
-	const [authenticated, setAuthenticated] = useState(false);
+	const [showGame, setShowGame] = useState(false);
 
 	useEffect(() => {
 		/* Initial transition from IDLE to INACTIVE */
@@ -281,9 +280,8 @@ export default function VideoChat() {
 	}
 
 	/* GAME FUNCTIONS */
-	function authenticate(name) {
-		setName(name);
-		setAuthenticated(true);
+	function toggleShowGame() {
+		setShowGame(!showGame);
 	}
 
 	function renderComponent() {
@@ -299,11 +297,13 @@ export default function VideoChat() {
 						}
 						} id={"call-btn"}>Click to call</button>
 					: <button onClick={disconnect} id={"disconnect-btn"}>Click to disconnect</button>}
-				<div id="videostream-container" className="container-100">
-					<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
-					<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
+				<div id={showGame && "video-game-container"}>
+					<div id="videostream-container" className={showGame ? "container-70" : "container-100"}>
+						<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
+						<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
+					</div>
+					{showGame ? <Game /> : <button onClick={toggleShowGame}>Enable game</button>}
 				</div>
-				<Authentication onAuthenticate={(name) => authenticate(name)} />
 			</div>;
 		} else {
 			return <div>
