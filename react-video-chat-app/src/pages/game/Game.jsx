@@ -24,93 +24,130 @@ function Square(props) {
   );
 }
 
-function Board() {
-  const [boardIndex, setBoardIndex] = useState(null);
+function Board(props) {
+  const { belongsTo } = props;
+  const [userSymbolMap, setUserSymbolMap] = useState();
+  const [statuss, setStatus] = useState("");
   const { message: gameActionPayload } = useSubscription([
     topics.publishGameMove,
   ]);
-
   const { client, connectionStatus } = useMqttState();
   const [gameState, setGameState] = useState({
     squares: Array(9).fill(null),
     xIsNext: true,
   });
 
-  let moveToSend = (i) => ({
-    index: i,
-  });
+  useEffect(() => {
+    if (gameActionPayload?.message) {
+      const payload = JSON.parse(gameActionPayload.message);
+      const squareIndex = Number(payload.move);
 
+      processMove(squareIndex);
+    }
+  }, [gameActionPayload]);
+
+  useEffect(() => {
+    const winner = calculateWinner(gameState.squares);
+    if (winner) {
+      setStatus("Winner: " + winner);
+      winner == userSymbolMap.symbol && logWinner().catch(console.error);
+    } else {
+      setStatus("Next player: " + (gameState.xIsNext ? "X" : "O"));
+    }
+  }, [gameState]);
+
+  /**
+   * Processes an MQTT message which occurs when a player makes a move
+   * @param squareIndex representing the index on the board
+   * on which the move was made
+   * @returns void
+   */
+  function processMove(squareIndex) {
+    const squares = gameState.squares;
+
+    // If game is finished or clicked square is filled:
+    // do not alter state
+    if (calculateWinner(squares) || squares[squareIndex]) {
+      return;
+    }
+
+    const symbolLogic = (val, index) => {
+      if (index === squareIndex && gameState.xIsNext && !squares[squareIndex]) {
+        return "X";
+      }
+      if (index === squareIndex && !gameState.xIsNext && !squares[squareIndex]) {
+        return "O";
+      }
+      return val;
+    };
+
+    setGameState((prev) => ({
+      ...prev,
+      squares: squares.map((val, index) => symbolLogic(val, index)),
+      xIsNext: !prev.xIsNext,
+    }));
+  }
+
+  /**
+   * Increments score of winning player by 1 in Firestore
+   * @returns {Promise<void>}
+   */
+  async function logWinner() {
+    const doc = (await firebase
+        .firestore()
+        .collection("scores")
+        .where("name", "==", belongsTo)
+        .get());
+    if (!doc.empty) {
+      doc.forEach((snap) => {
+        snap
+            .ref
+            .update({ score: firebase.firestore.FieldValue.increment(1) });
+      })
+    } else {
+      firebase
+          .firestore()
+          .collection("scores")
+          .doc()
+          .set({name: belongsTo, score: 1});
+    }
+  }
+
+  /**
+   * Publishes a message to the MQTT broker
+   * @param message the JSON-formatted message to be published
+   * @returns void
+   */
   function publishGameMove(message) {
     if (connectionStatus.toLowerCase() === "connected") {
       client.publish(topics.publishGameMove, message);
     }
   }
 
-  useEffect(() => {
-    if (gameActionPayload?.message) {
-      setBoardIndex(Number(gameActionPayload.message));
-
-      const s = Number(gameActionPayload.message);
-
-      console.log(boardIndex);
-
-      const squares = gameState.squares.slice();
-      console.log(squares);
-
-      if (calculateWinner(squares) || squares[s]) {
-        return;
-      }
-      const symbolLogic = (val, index) => {
-        if (index === s && gameState.xIsNext && !gameState.squares[s]) {
-          return "X";
-        }
-        if (index === s && !gameState.xIsNext && !gameState.squares[s]) {
-          return "O";
-        }
-        return val;
-      };
-
-      const squresValues = [
-        ...squares.map((val, index) => symbolLogic(val, index)),
-      ];
-      setGameState((prev) => ({
-        ...prev,
-        squares: squresValues,
-
-        xIsNext: !prev.xIsNext,
-      }));
-    }
-  }, [gameActionPayload]);
-
-  const handleClick = (j) => {
-    console.log("click has been handeled");
-  };
-
   const renderSquare = (i) => {
     return (
       <Square
         value={gameState.squares[i]}
         onClick={() => {
-          handleClick(i);
-          publishGameMove(String(i));
+          publishGameMove(JSON.stringify({
+            move: String(i),
+            user: belongsTo
+          }));
+
+          if (userSymbolMap == undefined) {
+            setUserSymbolMap({
+              user: belongsTo,
+              symbol: gameState.xIsNext ? "X" : "O"
+            })
+          }
         }}
       />
     );
   };
 
-  const winner = calculateWinner(gameState.squares);
-
-  let status;
-
-  if (winner) {
-    status = "Winner: " + winner;
-  } else {
-    status = "Next player: " + (gameState.xIsNext ? "X" : "O");
-  }
-
   return (
     <div>
-      <div className="status">{status}</div>
+      <div className="status">{statuss}</div>
       <div className="board-row">
         {renderSquare(0)}
         {renderSquare(1)}
@@ -133,6 +170,7 @@ function Board() {
 export default function Game() {
   const [name, setName] = useState();
   const [authenticated, setAuthenticated] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
 
   const { client, connectionStatus } = useMqttState();
 
@@ -164,14 +202,18 @@ export default function Game() {
   return (
     <div>
       <h1>TicGame</h1>
-      <div className="game-board">{showTheGame?.state && <Board />}</div>
-      <button
+      <div className="game-board">
+        {showTheGame?.state && <Board belongsTo={name} />}
+      </div>
+      {!hasStarted && <button
         onClick={() => {
           publishStartGame(JSON.stringify({ state: true }));
+          setHasStarted(true);
         }}
+        disabled={!authenticated}
       >
         Start Game
-      </button>
+      </button>}
 
       <Authentication
         onAuthenticate={(name) => {
@@ -205,12 +247,6 @@ function calculateWinner(squares) {
 }
 
 /*TODO
-
-  Remove the start game button after push
-
-  Player 1 is the player who starts the game, assign player 1 state to that player,
-
-  Assign to other player, player 2 if game starts and he did not push the button.
 
   If x wins, log statistics.
 
