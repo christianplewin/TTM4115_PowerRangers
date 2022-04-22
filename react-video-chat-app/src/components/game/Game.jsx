@@ -8,13 +8,16 @@ import firebase from "firebase";
 import Authentication from "../authentication";
 import Leaderboard from "../Leaderboard";
 
+//MQTT Topic base
 const GLOBAL_BASE = "/ttm4115/team_12";
 
+//Topics to handle game intialization and gameplay
 const topics = {
   publishGameOffer: `${GLOBAL_BASE}/startGame`,
   publishGameMove: `${GLOBAL_BASE}/gameMoves`,
 };
 
+//Square functions to track the values of the squares in the board
 function Square(props) {
   return (
     <button className="square" onClick={props.onClick}>
@@ -23,6 +26,11 @@ function Square(props) {
   );
 }
 
+/**
+  * Board functional component that keeps track of the game state
+  * @param props for dynamic flow of data
+  * @returns jsx.element
+  */
 function Board(props) {
   const { belongsTo } = props;
   const [userSymbolMap, setUserSymbolMap] = useState();
@@ -37,6 +45,7 @@ function Board(props) {
     xIsNext: true,
   });
 
+  //Update the board on move received on the MQTT topic
   useEffect(() => {
     if (gameActionPayload?.message) {
       const payload = JSON.parse(gameActionPayload.message);
@@ -46,6 +55,7 @@ function Board(props) {
     }
   }, [gameActionPayload]);
 
+  //Check if the game has concluded
   useEffect(() => {
     const winner = calculateWinner(gameState.squares);
     if (winner) {
@@ -71,7 +81,8 @@ function Board(props) {
     if (calculateWinner(squares) || squares[squareIndex]) {
       return;
     }
-
+    
+    //logic to keep track of which symbol is next
     const symbolLogic = (val, index) => {
       if (index === squareIndex && gameState.xIsNext && !squares[squareIndex]) {
         return "X";
@@ -82,6 +93,7 @@ function Board(props) {
       return val;
     };
 
+    //update the game state
     setGameState((prev) => ({
       ...prev,
       squares: squares.map((val, index) => symbolLogic(val, index)),
@@ -125,6 +137,11 @@ function Board(props) {
     }
   }
 
+  /**
+   * Render the square element which the appropriate values
+   * @params i the index of square
+   * @returns JSX.element
+   */
   const renderSquare = (i) => {
     return (
       <Square
@@ -146,6 +163,10 @@ function Board(props) {
     );
   };
 
+  /**
+   * Render the board element which the appropriate squares
+   * @returns JSX.element
+   */
   const renderBoard = () => {
     return (<>
         <div className="board-row">
@@ -174,6 +195,7 @@ function Board(props) {
   );
 }
 
+//Combine the fuctions to make a game component
 export default function Game() {
   const [name, setName] = useState();
   const [authenticated, setAuthenticated] = useState(false);
@@ -189,12 +211,14 @@ export default function Game() {
 
   const showTheGame = startGamePayload2 && JSON.parse(startGamePayload2);
 
+  //publish move to topic
   function publishStartGame(message) {
     if (connectionStatus.toLowerCase() === "connected") {
       client.publish(topics.publishGameOffer, message);
     }
   }
 
+  //identification, currently not proper authentication as this is easily implemented in later stages
   function authenticate(name) {
     if (!authenticated) {
       setName(name);
@@ -202,6 +226,7 @@ export default function Game() {
     }
   }
 
+  
   function logger() {
     console.log(name);
   }
@@ -232,6 +257,12 @@ export default function Game() {
   );
 }
 
+
+/**
+ * Calculate if the game is in a winning state
+ * @param squares containing 9 square elements
+ * @returns JSX.element
+ */
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2],
@@ -252,21 +283,3 @@ function calculateWinner(squares) {
   }
   return null;
 }
-
-/*TODO
-
-  If x wins, log statistics.
-
-  Log statistics increments the amount of wins, player 1 has by 1.
-
-  Get the name from the winner by matching the value of player name and authenticated name.
-
-  For example, if the winner is X, check which player is player 1 and log 1 win for player 1.
-
-  Do this by checking player state at each client and winner.
-
-  It will be easy to distinguis the players based on who pressed the button.
-
-  Therefore we can use the same MQTT topic for all the players
-
-  */
