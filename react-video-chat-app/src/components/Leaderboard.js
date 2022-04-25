@@ -1,5 +1,6 @@
 import "./Leaderboard.css";
-
+import Button from 'react-bootstrap/Button';
+import { useNavigate } from "react-router-dom";
 import firebase from "firebase";
 import { useEffect, useState } from "react";
 
@@ -35,6 +36,14 @@ export default function Leaderboard() {
 function Table(props) {
 	const { scoreData } = props;
 
+
+	let navigate = useNavigate(); 
+
+	const routeChange = () =>{ 
+	  let path = `/`; 
+	  navigate(path);
+	}
+
 	function createRow(rowData, index) {
 		return <tr>
 			<td>{index}</td>
@@ -43,7 +52,7 @@ function Table(props) {
 		</tr>
 	}
 
-	return <table>
+	return <p> <table>
 		<thead>
 			<tr>
 				<th colSpan={3}>Leaderboard</th>
@@ -63,4 +72,12 @@ function Table(props) {
 			}
 		</tbody>
 	</table>
+	<p>
+	</p>
+		<button type="button" class="btn btn-info"
+            onClick={routeChange}
+              >
+              Main Menu
+    	</button>
+	</p>
 }

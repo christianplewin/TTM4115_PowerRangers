@@ -290,37 +290,39 @@ export default function VideoChat() {
 			return <div>
 				<h1 id="page-title">Video chat application</h1>
 				{controlState === STATES.active
-					? <button onClick={() => {
+					? <button type="button" class="btn btn-info" onClick={() => {
 						// Update state machine
 						setPublishingOffer(true);
 						setControlState(STATES.in_call);
 						}
 						} id={"call-btn"}>Click to call</button>
-					: <button onClick={disconnect} id={"disconnect-btn"}>Click to disconnect</button>}
+					: <button type="button" class="btn btn-info" onClick={disconnect} id={"disconnect-btn"}>Click to disconnect</button>}
+				<div></div>
 				<div id={showGame && "video-game-container"}>
 					<div id="videostream-container" className={showGame ? "container-70" : "container-100"}>
 						<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
 						<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
 					</div>
-					{showGame ? <Game /> : <button onClick={toggleShowGame}>Enable game</button>}
+					{showGame ? <Game /> : <button type="button" class="btn btn-info" onClick={toggleShowGame}>Enable game</button>}
 				</div>
 			</div>;
 		} else {
 			return <div>
 				<h1 id="page-title">Video chat application</h1>
-				<button
+				<button type="button" class="btn btn-info"
 					onClick={() => setClientNumber(1)}
 					disabled={clientNumber !== undefined}
 				>
 					I'm client number 1
 				</button>
-				<button
+				
+				<button type="button" class="btn btn-info"
 					onClick={() => setClientNumber(2)}
 					disabled={clientNumber !== undefined}
 				>
 					I'm client number 2
 				</button>
-				<button
+				<button type="button" class="btn btn-info"
 					onClick={() => setControlState(STATES.active)}
 					disabled={clientNumber != 1 && clientNumber != 2}
 				>
