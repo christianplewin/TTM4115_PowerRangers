@@ -25,7 +25,9 @@ export default function Leaderboard() {
 		scoreCollection
 			.get()
 			.then((colData) => {
-				setScoreData(colData.docs.map((doc) => doc.data()));
+				setScoreData(colData.docs.map((doc) => doc.data()).sort((a, b) => {
+					return b.score - a.score;
+				}))
 			})
 	}, []);
 

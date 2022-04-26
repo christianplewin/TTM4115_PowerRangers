@@ -102,7 +102,7 @@ export default function VideoChat() {
 				}
 			} else if (message.topic === TOPICS.camera) {
 				const words = message.message.split(" ");
-				const camClient =  clientNumber == 1 ? "cam1" : "cam2";
+				let camClient =  clientNumber == 1 ? "cam1" : "cam2";
 
 				if (words[0] == camClient) {
 					console.log(message.topic, message.message);
