@@ -65,8 +65,7 @@ class Face_Detection():
             ret, img = self.cap.read()
             img = cv2.flip(img, 1)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            faces = self.faceCascade.detectMultiScale( #DetectMultiScale is the built in openCV function that 
-                                                       #scans the image for faces and return boxes with faces detected
+            faces = self.faceCascade.detectMultiScale( #DetectMultiScale is the built in openCV function that scans the image for faces and return boxes with faces detected
                 gray,
                 scaleFactor=1.2,
                 minNeighbors=5,     

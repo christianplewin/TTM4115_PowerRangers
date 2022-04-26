@@ -4,7 +4,7 @@ from stmpy import Driver, Machine
 import paho.mqtt.client as mqtt
 import cv2
 import time
-from broker import MQTT_Client_1
+#from broker import MQTT_Client_1
 
 #broker, port = "localhost", 1883
 #broker, port = "mqtt.item.ntnu.no", 1883
@@ -13,9 +13,9 @@ broker, port = "test.mosquitto.org", 1883
 class camSTM: #The class for the state machine with two functions called as trigger effects. 
     def __init__(self):
         print("init")
-    def start_app(self): #Sends message to react app via mqtt
+    def notify_in_frame(self): #Sends message to react app via mqtt
         myclient.client.publish("/ttm4115/team_12/cam", "cam2 in_frame")
-    def timed_out(self): #Sends message to react app via mqtt
+    def notify_left_frame(self): #Sends message to react app via mqtt
         myclient.client.publish("/ttm4115/team_12/cam", "cam2 left_frame")
 
 class MQTT_Client:
@@ -60,11 +60,11 @@ t0 = {  #Initial state
     'target': 'searching',
 }
 
-t1 = {  #Transition from cam2_in_frame to searching which should send a message through start_app()
+t1 = {  #Transition from cam2_in_frame to searching which should send a message through notify_in_frame()
     "trigger": 'cam2_in_frame',
     "source": 'searching',
     "target": "person_in_frame",
-    "effect": "start_app"
+    "effect": "notify_in_frame"
 }
 
 t2 = { #When receiving left_frame this transition will start a timer of 20 seconds
@@ -78,7 +78,7 @@ t3 = { #If timer runs out this will trigger
     "trigger": "t",
     "source": "out_of_frame",
     "target": "searching",
-    "effect": "timed_out"
+    "effect": "notify_left_frame"
 }
 t4 = { #If receiving in_frame before timer runs out this will trigger
     "trigger": "in_frame;",
