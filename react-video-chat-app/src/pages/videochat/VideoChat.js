@@ -61,24 +61,7 @@ export default function VideoChat() {
 	const [showGame, setShowGame] = useState(false);
 
 	useEffect(() => {
-		/* Initial transition from IDLE to INACTIVE */
-		if (controlState === STATES.idle) {
-			setControlState(STATES.inactive);
-		} else if (controlState === STATES.inactive) {
-			pc = new RTCPeerConnection(SERVERS);
-		} else if (controlState === STATES.active) {
-			getLocalVideo();
-			getRemoteVideo();
-			if (connectionStatus.toLowerCase() === "connected") {
-				publishPresence(meetingId);
-			}
-		} else if (controlState === STATES.in_call) {
-			if (publishingOffer === true) {
-				call();
-			} else {
-				answerCall(meetingId);
-			}
-		}
+		stateMachine(controlState);
 	}, [controlState]);
 
 	useEffect(() => {
@@ -126,8 +109,50 @@ export default function VideoChat() {
 		}
 	}, [message]);
 
+	/**
+	 * Function which handles the transitions in the state machine defined
+	 * in the state machine diagram.
+	 * @param controlState - the state which the system is entering.
+	 */
+	function stateMachine(controlState) {
+		if (controlState === STATES.idle) {
+			/* Initial transition from IDLE to INACTIVE */
+			setControlState(STATES.inactive);
+		} else if (controlState === STATES.inactive) {
+			/* Going into state INACTIVE. */
+			/* We create a new RTCPeerConnection whenever we enter
+			* this state to make it possible to start new calls after
+			* disconnecting from previous ones. */
+			pc = new RTCPeerConnection(SERVERS);
+		} else if (controlState === STATES.active) {
+			/* Going into state ACTIVE */
+			/* We have to set up the local video and make the remote video
+			* reception ready. Additionally, we have to notify the other
+			* entity that we are active, which is the 'notify_active'-function
+			* in the state machine diagram. */
+			getLocalVideo();
+			getRemoteVideo();
+			if (connectionStatus.toLowerCase() === "connected") {
+				publishPresence(meetingId);
+			}
+		} else if (controlState === STATES.in_call) {
+			/* Going into state IN_CALL */
+			/* If we are the first ones to go into this state,
+			* we will be calling the other entity. Otherwise, we will
+			* answer the call from the other entity. */
+			if (publishingOffer === true) {
+				call();
+			} else {
+				answerCall(meetingId);
+			}
+		}
+	}
 
-	const getRemoteVideo = async () => {
+	/**
+	 * Enables the possible reception and display of remote video stream.
+	 * @returns {Promise<void>}
+	 */
+	async function getRemoteVideo() {
 		remoteStream = new MediaStream();
 
 		pc.ontrack = (event) => {
@@ -138,8 +163,12 @@ export default function VideoChat() {
 
 		remoteVideoRef.current.srcObject = remoteStream;
 	}
-	
-	const getLocalVideo = async () => {
+
+	/**
+	 * Enables the possible transmission and display of local video stream.
+	 * @returns {Promise<void>}
+	 */
+	async function getLocalVideo() {
 		localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
 		localStream.getTracks().forEach((track) => {
@@ -149,6 +178,14 @@ export default function VideoChat() {
 		localVideoRef.current.srcObject = localStream;
 	}
 
+	/**
+	 * Creates a call document in the database (Firestore) and subscribes
+	 * to changes to it. Publishes the WebRTC offer to MQTT, which
+	 * the other entity will notice if it is in state ACTIVE. The other
+	 * entity will then answer the call using the 'answerCall'-method.
+	 * @param meetingId - the ID of the call-document in Firestore.
+	 * @returns {Promise<void>}
+	 */
 	async function createCall(meetingId) {
 		// Reference Firestore collections for signaling
 		const callDoc = db.collection('calls').doc(meetingId);
@@ -192,6 +229,12 @@ export default function VideoChat() {
 		});
 	}
 
+	/**
+	 * Updates the call document in the database (Firestore) and subscribes
+	 * to changes to it.
+	 * @param meetingId - the ID of the call-document in Firestore.
+	 * @returns {Promise<void>}
+	 */
 	async function answerCall(meetingId) {
 		const callDoc = db.collection('calls').doc(meetingId);
 		const answerCandidates = callDoc.collection('answerCandidates');
@@ -253,7 +296,7 @@ export default function VideoChat() {
 	}
 
 	/**
-	 * Creates a call
+	 * Creates a call and updates internal state.
 	 */
 	function call() {
 		createCall(message.topic === TOPICS.publishPresence ? message.message : meetingId)
@@ -264,11 +307,14 @@ export default function VideoChat() {
 
 	/* Disconnects the users, removing the video stream */
 	function disconnect() {
-		setControlState(STATES.inactive);
+		setControlState(!userInFrame ? STATES.inactive : STATES.active);
 		publishDisconnect();
 	}
 
 	/* GAME FUNCTIONS */
+	/**
+	 * Toggles the showGame-variable.
+	 */
 	function toggleShowGame() {
 		setShowGame(!showGame);
 	}

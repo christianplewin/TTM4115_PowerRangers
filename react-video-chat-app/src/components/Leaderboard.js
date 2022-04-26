@@ -3,25 +3,19 @@ import "./Leaderboard.css";
 import firebase from "firebase";
 import { useEffect, useState } from "react";
 
-const data = [
-	{
-		name: "Navn 1",
-		score: 5
-	},
-	{
-		name: "Navn 2",
-		score: 2
-	},
-	{
-		name: "Navn 3",
-		score: 6
-	}
-];
-
 export default function Leaderboard() {
 	const scoreCollection = firebase.firestore().collection("scores");
 	const [scoreData, setScoreData] = useState([]);
 	useEffect(() => {
+		setInitialData();
+	}, []);
+
+	/**
+	 * Fetches all score documents from the database (Firestore),
+	 * and updates the internal state representing the cores to the
+	 * sorted list of documents returned from the query.
+	 */
+	function setInitialData() {
 		scoreCollection
 			.get()
 			.then((colData) => {
@@ -29,7 +23,7 @@ export default function Leaderboard() {
 					return b.score - a.score;
 				}))
 			})
-	}, []);
+	}
 
 	return <Table scoreData={scoreData} />;
 }
