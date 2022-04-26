@@ -11,16 +11,7 @@ const STATES = {
 	inactive: "inactive",
 	active: "active",
 	in_call: "in_call",
-	in_game: "in_game"
 };
-
-/*const EVENTS = {
-	rcv_face_detected: "rcv_face_detected",
-	rcv_left_frame: "rcv_left_frame",
-	rcv_others_active: "rcv_others_active",
-	disconnect: "disconnect",
-	play: "play"
-};*/
 
 const SERVERS = {
 	iceServers: [
@@ -47,7 +38,7 @@ let remoteStream = null;
 
 export default function VideoChat() {
 	const [controlState, setControlState] = useState(STATES.idle);
-	const renderStates = [STATES.active, STATES.in_call, STATES.in_game];
+	const renderStates = [STATES.active, STATES.in_call];
 
 	/* VIDEOCHAT CONSTANTS */
 	const [clientNumber, setClientNumber] = useState(undefined);
@@ -87,8 +78,6 @@ export default function VideoChat() {
 			} else {
 				answerCall(meetingId);
 			}
-		} else if (controlState === STATES.in_game) {
-			//TODO: Add state machine logic for game
 		}
 	}, [controlState]);
 
@@ -108,7 +97,7 @@ export default function VideoChat() {
 			} else if (message.topic === TOPICS.publishOffer) {
 				!havePublishedOffer && setControlState(STATES.in_call);
 			} else if (message.topic === TOPICS.disconnect) {
-				if (controlState === STATES.in_call || controlState === STATES.in_game) {
+				if (controlState === STATES.in_call) {
 					disconnect();
 				}
 			} else if (message.topic === TOPICS.camera) {
@@ -123,14 +112,14 @@ export default function VideoChat() {
 
 						if (!userInFrame) setUserInFrame(true);
 
-						//if (controlState === STATES.inactive) setControlState(STATES.active);
+						if (controlState === STATES.inactive) setControlState(STATES.active);
 
 					} else if (words[1] === "left_frame") {
 						console.log("Should go into INACTIVE if in ACTIVE");
 
 						if (userInFrame) setUserInFrame(false);
 
-						//if (controlState === STATES.active) setControlState(STATES.inactive);
+						if (controlState === STATES.active) setControlState(STATES.inactive);
 					}
 				}
 			}
