@@ -5,6 +5,7 @@ import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
 import Game from "../../components/game/Game.jsx";
+import VideoStream from "../../components/VideoStream";
 
 const STATES = {
 	idle: "idle",
@@ -72,42 +73,51 @@ export default function VideoChat() {
 
 	useEffect(() => {
 		if (message) {
-			console.log(message.topic, message.message);
-			if (controlState === STATES.active &&
-				message.message != meetingId &&
-				message.topic == TOPICS.publishPresence) {
-				setMeetingId(message.message);
-			} else if (message.topic === TOPICS.publishOffer) {
-				!havePublishedOffer && setControlState(STATES.in_call);
-			} else if (message.topic === TOPICS.disconnect) {
-				if (controlState === STATES.in_call) {
-					disconnect();
-				}
-			} else if (message.topic === TOPICS.camera) {
-				const words = message.message.split(" ");
-				let camClient =  clientNumber == 1 ? "cam1" : "cam2";
+			handleMqttMessage(message);
+		}
+	}, [message]);
 
-				if (words[0] == camClient) {
-					console.log(message.topic, message.message);
+	/**
+	 * Handles the reception of an MQTT message. May alter state or initiate an answer of a call.
+	 * @param message the MQTT message with the following structure: {topic: MQTT topic of message (string),
+	 * message: payload contained in MQTT message (string)}.
+	 */
+	function handleMqttMessage(message) {
+		console.log(message.topic, message.message);
+		if (controlState === STATES.active &&
+			message.message != meetingId &&
+			message.topic == TOPICS.publishPresence) {
+			setMeetingId(message.message);
+		} else if (message.topic === TOPICS.publishOffer) {
+			!havePublishedOffer && setControlState(STATES.in_call);
+		} else if (message.topic === TOPICS.disconnect) {
+			if (controlState === STATES.in_call) {
+				disconnect();
+			}
+		} else if (message.topic === TOPICS.camera) {
+			const words = message.message.split(" ");
+			let camClient =  clientNumber == 1 ? "cam1" : "cam2";
 
-					if (words[1] === "in_frame") {
-						console.log("Should go into ACTIVE if in INACTIVE");
+			if (words[0] == camClient) {
+				console.log(message.topic, message.message);
 
-						if (!userInFrame) setUserInFrame(true);
+				if (words[1] === "in_frame") {
+					console.log("Should go into ACTIVE if in INACTIVE");
 
-						if (controlState === STATES.inactive) setControlState(STATES.active);
+					if (!userInFrame) setUserInFrame(true);
 
-					} else if (words[1] === "left_frame") {
-						console.log("Should go into INACTIVE if in ACTIVE");
+					if (controlState === STATES.inactive) setControlState(STATES.active);
 
-						if (userInFrame) setUserInFrame(false);
+				} else if (words[1] === "left_frame") {
+					console.log("Should go into INACTIVE if in ACTIVE");
 
-						if (controlState === STATES.active) setControlState(STATES.inactive);
-					}
+					if (userInFrame) setUserInFrame(false);
+
+					if (controlState === STATES.active) setControlState(STATES.inactive);
 				}
 			}
 		}
-	}, [message]);
+	}
 
 	/**
 	 * Function which handles the transitions in the state machine defined
@@ -368,16 +378,4 @@ export default function VideoChat() {
 	return renderComponent();
 }
 
-const VideoStream = forwardRef((props, ref) => {
-  return (
-    <>
-      <video
-        ref={ref}
-        id={props.location}
-        className="videostream"
-        autoPlay
-        playsInline
-      />
-    </>
-  );
-});
+
