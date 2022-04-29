@@ -1,6 +1,6 @@
 import "./VideoChat.css";
 
-import { useEffect, useState, useRef, forwardRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMqttState, useSubscription } from "mqtt-react-hooks";
 import firebase from "firebase";
 import { v4 as uuidv4 } from "uuid";
@@ -34,8 +34,8 @@ const TOPICS = {
 };
 
 let pc/* = new RTCPeerConnection(SERVERS)*/;
-let localStream = null;
-let remoteStream = null;
+let localVidStream = null;
+let remoteVidStream = null;
 
 export default function VideoChat() {
 	const [controlState, setControlState] = useState(STATES.idle);
@@ -87,14 +87,22 @@ export default function VideoChat() {
 		if (controlState === STATES.active &&
 			message.message != meetingId &&
 			message.topic == TOPICS.publishPresence) {
+			/* If the message contains a meeting ID different from current meeting ID,
+			* update current meeting ID.*/
 			setMeetingId(message.message);
-		} else if (message.topic === TOPICS.publishOffer) {
+		} else if (message.topic === TOPICS.publishOffer && controlState === STATES.active) {
+			/* If message is an offer, go to state in_call if this component didn't
+			* publish the offer. */
 			!havePublishedOffer && setControlState(STATES.in_call);
 		} else if (message.topic === TOPICS.disconnect) {
 			if (controlState === STATES.in_call) {
 				disconnect();
 			}
 		} else if (message.topic === TOPICS.camera) {
+			/* Format of message in camera-topic is "<clientNumber> <in_frame/left_frame>".
+			* The first part is included to distinguish between the different hosts.
+			* The second part is included to distinguish between the facial recognition
+			* module noticing that a face entered the frame, or left the frame. */
 			const words = message.message.split(" ");
 			let camClient =  clientNumber == 1 ? "cam1" : "cam2";
 
@@ -163,15 +171,15 @@ export default function VideoChat() {
 	 * @returns {Promise<void>}
 	 */
 	async function getRemoteVideo() {
-		remoteStream = new MediaStream();
+		remoteVidStream = new MediaStream();
 
 		pc.ontrack = (event) => {
 			event.streams[0].getTracks().forEach((track) => {
-				remoteStream.addTrack(track);
+				remoteVidStream.addTrack(track);
 			});
 		};
 
-		remoteVideoRef.current.srcObject = remoteStream;
+		remoteVideoRef.current.srcObject = remoteVidStream;
 	}
 
 	/**
@@ -179,13 +187,13 @@ export default function VideoChat() {
 	 * @returns {Promise<void>}
 	 */
 	async function getLocalVideo() {
-		localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+		localVidStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
-		localStream.getTracks().forEach((track) => {
-			pc.addTrack(track, localStream);
+		localVidStream.getTracks().forEach((track) => {
+			pc.addTrack(track, localVidStream);
 		});
 
-		localVideoRef.current.srcObject = localStream;
+		localVideoRef.current.srcObject = localVidStream;
 	}
 
 	/**
@@ -344,8 +352,8 @@ export default function VideoChat() {
 					: <button onClick={disconnect} id={"disconnect-btn"}>Click to disconnect</button>}
 				<div id={showGame && "video-game-container"}>
 					<div id="videostream-container" className={showGame ? "container-70" : "container-100"}>
-						<VideoStream props={{ location: "webcamVideo" }} ref={localVideoRef} />
-						<VideoStream props={{ location: "remoteVideo" }} ref={remoteVideoRef} />
+						<VideoStream props={{ location: "webcamVideo", muted: true }} ref={localVideoRef} />
+						<VideoStream props={{ location: "remoteVideo", muted: false }} ref={remoteVideoRef} />
 					</div>
 					{showGame ? <Game /> : <button onClick={toggleShowGame}>Enable game</button>}
 				</div>
